@@ -1,0 +1,328 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}          
+\usepackage{graphicx}
+\usepackage{amsthm, amsmath, amssymb}
+\usepackage{listings}
+
+\title{E1039 Trigger Architecture Description and Operation} 
+\author{Noah Wuerfel}
+\date{\today}
+ 
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This is the E1039 trigger architecture description and operation manual. The purpose of this document is to provide an introduction to the firmware architecture, design decisions, and operation of the trigger system in the E1039 SpinQuest experiment at Fermilab. Hopefully, this document is presented in language plain enough for new graduate students or those without extensive previous experience working with FPGA systems. By the end of the document a reader ought to understand the basic layout of the trigger system and matrix logic, design goals and current limitations, and how to commission the trigger in full or part. Written by an idiot, hopefully idiot proof...
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+
+\section{Big picture survey of the E1039 trigger}
+
+The E1039 ``SpinQuest'' experiment will measure an azimuthal asymmetry in the Drell-Yan production of $\mu^+$ $\mu^-$ pairs from 120 GeV/c proton interactions with polarized nucleons to extract the Sivers function for $\bar{u}$ and $\bar{d}$. A large combinatorial background from muons produced in the beam dump requires a trigger which is capable of identifying dimuon pairs originating from the target in a high rate environment. The trigger system consists of four stations of scintillator hodoscopes whose 96 channels are digitized and processed by field-programmable gate array (FPGA) based VMEbus modules. Hodoscope hit patterns are compared to predetermined sets, chosen from Monte Carlo simulations, in a tiered lookup table to generate trigger decisions. 
+
+The trigger is modified from the existing E906 trigger
+	
+\section{Systems and components}
+			
+	\subsection{Hardware}
+	
+	\subsection{Trigger levels}
+	
+	\subsection{Trigger matrix}
+	
+	\subsection{Driver Library}
+	There is an extant driver library (with small bugs) which we'll eventually extend or use to write our own pulser tests. Currently it is unclear how to compile the drivers as some VXWorks header libraries are missing from the daq computer. There's rumor of an old computer which is capable of compiling drivers I'll update when we find out. Here's some rough listing of the driver functions, their spec, and how I think they run. This is incomplete but everything required to actually run tests will be included here. The STATUS enumeration is OK $=0$ and ERROR $=-1$, I believe these are VXWorks specced. 
+	
+		\begin{itemize}	
+		\item
+			\begin{lstlisting}
+STATUS v1495Init(UINT32 addr, UINT32 addr_inc, int nmod)
+			\end{lstlisting}
+			This function initializes the v1495's and checks that board base addresses (and the local memory mapped addresses in FPGA USERSPACE) are addressable by reading shorts and relying on the built in vxMemProbe function. Initialization just means setting up arrays in vxworks memory space with pointers to FPGA USERSPACE for data, tdc outputs, etc. The arrays are indexed by board\_id which iterates from lowest base address to highest (don't mess up the base address order when setting up the boards, go from lowest to highest from L0 to L2). Currently, there's a bug where the function successfully completes, but then returns an ERROR. Marked things that look bad or useless with a big ol' `USELESS' (did the same to functions that seem like they don't use their args).
+			
+		\item
+			\begin{lstlisting}
+void v1495Status(int id)
+			\end{lstlisting}
+			just reads out some USERLAND registers and dumps the results to the screen
+			
+		\item 
+			\begin{lstlisting}
+void v1495TimewindowSet(int id, int val)
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+int v1495TimewindowRead(int id)			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+void v1495Reset(int id)			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+void v1495Timeset			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+void v1495sprintf(char* aString, int size, char aCharge, int fileNum, char fileType)			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+void v1495ActivatePulser(int id0)			
+			\end{lstlisting}
+
+		\item
+			\begin{lstlisting}
+void v1495DisactivatePulser(int id0)			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+void v1495PatternSet(int level, int id, char charge, char TorB, int patnum)			
+			\end{lstlisting}			
+
+		\item USELESS GARBO
+			\begin{lstlisting}
+void v1495DelayTest(int sec, int nsec)			
+			\end{lstlisting}
+
+		\item
+			\begin{lstlisting}
+void v1495PulserTest(int id)
+			\end{lstlisting}
+
+		\item
+			\begin{lstlisting}
+void v1495PulserGo(int id)			
+			\end{lstlisting}
+
+		\item INCOMPLETE AND OBSOLETE GARBO
+			\begin{lstlisting}
+void v1495PulserCompare(int id)			
+			\end{lstlisting}
+
+		\item
+			\begin{lstlisting}
+void v1495RoadPulser(int id0, int id1, int id2, char charge, const int numFiles, const int iter, 
+int win0, int win1, int win2)		
+			\end{lstlisting}
+
+		\item
+			\begin{lstlisting}
+void v1495PSimplePulser(int id0, int id1, int id2, int win0, int win1, int win2, const int iter)			
+			\end{lstlisting}
+
+		\item OUTDATED GARBO
+			\begin{lstlisting}
+void v1495PulserOnSignal(int id)			
+			\end{lstlisting}
+
+		\item
+			\begin{lstlisting}
+void v1495tdcStopSignal(int id)			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+void v1495TimesetTest(int id, int sleep)			
+			\end{lstlisting}
+
+		\item
+			\begin{lstlisting}
+void v1495Chread(int id, int sleep)			
+			\end{lstlisting}
+		
+		\item Looks like shit but maybe functional?
+			\begin{lstlisting}
+void v1495Chout(int id)
+			\end{lstlisting}						
+
+		\item
+			\begin{lstlisting}
+void v1495Run(int id)
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+void dummydelay(int delay)			
+			\end{lstlisting}
+			
+		\item DUPLICATE of Reset but maybe it works? 
+			\begin{lstlisting}
+void v1495Reload(int id)			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+void v1495AutoTimeset(int id, int sleep, short seedch, int startp)			
+			\end{lstlisting}
+			
+		\item Debug RUNNING IN CRL WILL CRASH ROC (christ...)
+			\begin{lstlisting}
+void v1495TDCRead(int id)			
+			\end{lstlisting}
+
+		\item reads out the ii index of the tdc for board: id
+			\begin{lstlisting}
+void v1495TDCReadout(int id, int ii)			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+int v1495TDCcount(int id)			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+int v1495RevisionRead(int id)			
+			\end{lstlisting}			
+
+		\item
+			\begin{lstlisting}
+int v1495CommonstopRead(int id)			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+int g1(int id, int row)
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+void v1495ciptag(int id)			
+			\end{lstlisting}
+			
+		\item
+			\begin{lstlisting}
+					
+			\end{lstlisting}									
+
+		\item
+			\begin{lstlisting}
+					
+			\end{lstlisting}
+
+		\item
+			\begin{lstlisting}
+						
+			\end{lstlisting}
+
+		\item
+			\begin{lstlisting}
+						
+			\end{lstlisting}
+												
+		\end{itemize}
+	
+	\subsection{CAEN and Userland Registers}
+The FPGA VME firmware onboard the v1495 provides access to 16 and 32 bit block W/R access to FPGA USERLAND as well as a number of predefined CAEN specced registers. Here's a listing of the USERLAND and CAEN registers with their addresses, all of this is specced in the driver header and CAEN manual but included here for ease of access. All items are 16 bit registers (read out as unsigned shorts/ 4 hex val) with only the CAEN Scratch32 register being 32 bit (unsigned int). \$\$ Denotes unused (?) in the USERLAND memory. USERLAND register definitions and descriptions are not yet existent to my knowledge (in plain english) but will be added here. The CAEN registers are described in more detail in the v1495 manual (pg. 18-22). Control/status register values and bitmasks are not included here, but are defined in the v1495Lib-2014.h header along with some macro functions. I'll include a copy of this header in the documentation folder for quick reference.
+		\begin{itemize}
+		\item `1495\_data' is the FPGA USERLAND memory running from 0x1000 to 0x7FFC
+			\begin{lstlisting}
+v1495_data {                                                                                                                                                                                                        
+    a_sta_l;   /* now is internal memory addr readout (0x1000)*/
+    a_sta_h;   /* now ??? undefine(0x1002) */
+    b_sta_l;   /* B port status (low)(0x1004) */
+    b_sta_h;   /* B port status (high)(0x1006) */
+    c_sta_l;   /* C port status (low)(0x1008) */
+    c_sta_h;   /* C port status (high)(0x100A) */
+    a_mask_l;  /* $$a mask register (low)(0x100C) */
+    a_mask_h;  /* $$a mask register (high)(0x100E) */
+    b_mask_l;  /* $$b mask register (low)(0x1010) */
+    b_mask_h;  /* $$b mask register (high)(0x1012) */
+    c_mask_l;  /* $$c mask register (low)(0x1014) */
+    c_mask_h;  /* $$c mask register (high)(0x1016) */
+    gatewidth; /* $$gate width(0x1018) */
+    c_ctrl_l;  /* now is internal memory addr ctrl (0x101A) */
+    c_ctrl_h;  /* now is internal memory ctrl (0x101C) */
+    mode;      /* $$mode(0x101E) */
+    scratch;   /* scratch(0x1020) */
+    g_ctrl;    /* $$g ctrl only bit 0 work(0x101E) */
+    d_ctrl_l;  /* $$d ctrl (low)(0x1024) */
+    d_ctrl_h;  /* $$d ctrl (high)(0x1026) */
+    d_data_l;  /* $$d data (low)(0x1028) */
+    d_data_h;  /* $$d data (high)(0x102A) */
+    e_ctrl_l;  /* $$e ctrl (low)(0x102C) */
+    e_ctrl_h;  /* $$e ctrl (high)(0x102E) */
+    e_data_l;  /* $$e data (low)(0x1030) */
+    e_data_h;  /* $$e data (high)(0x1032) */
+    f_ctrl_l;  /* $$f ctrl (low)(0x1034) */
+    f_ctrl_h;  /* $$f ctrl (high)(0x1036) */
+    f_data_l;  /* $$f data(0x1038) */
+    f_data_h;  /* $$f Set to 0x0001 to start pulser data(0x103A) */
+    revision;  /* revision(0x103C) */
+    pdl_ctrl;  /* $$pdl control(0x103E) */
+    pdl_data;  /* $$pdl data(0x1040) */
+    d_id;      /* d id code(0x1042) */
+    e_id;      /* e id code(0x1044) */
+    f_id;      /* f id code(0x1046) */
+};
+			\end{lstlisting}
+			
+		\item `v1495\_memoreadout' is also in FPGA USERLAND
+			\begin{lstlisting}
+v1495_memreadout {                                                                                                                                                                                                  
+    mem[128];  /* $$ memorr readout?(0x1100~0x11FF)*/
+};			
+			\end{lstlisting}
+
+		\item `v1495\_tdcreadout' is also in FPGA USERLAND
+			\begin{lstlisting}
+v1495_tdcreadout {
+    tdc[256];  /* $$ tdc readout?(0x1200~0x13FF)*/
+};			
+			\end{lstlisting}
+		\item `v1495\_pulse' is also in FPGA USERLAND
+			\begin{lstlisting}
+v1495_pulse {
+    pulse1[256];  /*pulser data block #1 (0x1400-0x15ff) */
+    pulse2[256];  /*pulser data block #2 (0x1600-0x17ff) */
+    pulse3[256];  /*pulser data block #3 (0x1800-0x19ff) */
+    pulse4[256];  /*pulser data block #4 (0x1a00-0x1bff) */
+    pulse5[256];  /*pulser data block #5 (0x1c00-0x1dff) */
+    pulse6[256];  /*pulser data block #6 (0x1e00-0x1fff) */
+};
+			\end{lstlisting}
+		\item `v1495\_vmestruct' are the CAEN defined registers (NOT FPGA USERLAND) as listed on page 18 of the v1495 Manual
+			\begin{lstlisting}
+struct v1495_vmestruct {
+    ctrlr;      /* $$ control register (0x8000)*/
+    statusr;    /* $$ status register (0x8002)*/
+    int_lv;     /* $$ interrupt Level (0x8004)*/
+    int_ID;     /* $$ interrupt Lv ID (0x8006)*/
+    geo_add;    /* $$ geo address register (0x8008)*/
+    mreset;     /* module reset (0x800A)*/
+    firmware;   /* $$ firmware revision (0x800C)*/
+    svmefpga;   /* $$ select vme fpga (0x800E)*/
+    vmefpga;    /* $$ vme fpga flash (0x8010)*/ 
+    suserfpga;  /* $$ select user fpga (0x8012)*/
+    userfpga;   /* $$ user fpga flash (0x8014)*/
+    fpgaconf;   /* user fpga configuration (0x8016)*/
+    scratch16;  /* scratch16 (0x8018)*/
+    scratch32;  /* scratch32 (0x8020)*/                                                                                                                                                                           
+};			
+			\end{lstlisting}
+		\end{itemize}
+		
+
+\section{Diagrammatic representations}
+	
+
+\section{Major design decisions}
+There are a number of constants which are referenced in many places throughout the code, most of which can be found int he gemTypes.h file. Here's a list of them:
+
+
+\section{Operating the Trigger- A Frontline Users Guide}
+	\subsection{Utilizing the Driver Library and CRL} 
+
+\section{Monte Carlo and road identification}
+
+\end{document}
